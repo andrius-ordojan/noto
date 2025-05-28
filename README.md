@@ -11,3 +11,21 @@ To protect against link rot, all referenced web pages are archived using [Archiv
 This way, I can continue saving links and jotting quick thoughts, while still ending up with a durable, searchable, and well-organized archive of what I’ve learned.
 
 🛠 Note: Sir Briefalot is still under active development and not yet ready for general use.
+
+## To Do
+
+- read notes
+  - [ ] parse markdown files
+    - [ ] find tags
+    - [ ] extract links
+    - [ ] define format for directives for llm
+    - [ ] define format for "chapters"
+    - [ ] extract content text
+- archive links
+  - [ ] submit links to archivebox
+  - [ ] download the readability extracted content
+  - [ ] retrieve the link to the archived link
+- generate summary
+  - [ ] create prompt for llm
+  - [ ] generate summary using llm
+  - [ ] rewrite note
