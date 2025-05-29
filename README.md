@@ -16,10 +16,10 @@ This way, I can continue saving links and jotting quick thoughts, while still en
 
 - read notes
   - [ ] parse markdown files
-    - [ ] find properties
+    - [x] find properties
     - [ ] extract links
       - [ ] separate articles from other websites
-    - [ ] define format for directives for llm
+    - [x] define format for directives for llm
     - [ ] define format for "chapters"
     - [ ] extract content text
 - archive links
