@@ -16,7 +16,7 @@ This way, I can continue saving links and jotting quick thoughts, while still en
 
 - read notes
   - [ ] parse markdown files
-    - [ ] find tags
+    - [ ] find properties
     - [ ] extract links
       - [ ] separate articles from other websites
     - [ ] define format for directives for llm
