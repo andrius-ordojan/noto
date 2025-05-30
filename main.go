@@ -13,8 +13,9 @@ func run() error {
 	}
 
 	for _, note := range notes {
-		fmt.Printf("Title: %s, Path: %s, Directive: %s\n", note.Title, note.Path, note.Directive)
-		note.parse()
+		// fmt.Printf("Title: %s, Path: %s, Directive: %s\n", note.Title, note.Path, note.Directive)
+		para, _ := note.parse()
+		fmt.Println(para)
 	}
 
 	return nil
