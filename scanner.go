@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/text"
 )
@@ -17,7 +19,20 @@ type Note struct {
 	Title     string
 	Path      string
 	Directive string
+	AST       ast.Node
 }
+
+func (n *Note) parse() string {
+	// find links in text and link nodes
+
+	f, err := os.ReadFile(n.Path)
+	if err != nil {
+		log.Fatalf("could not read file: %v", err)
+	}
+	n.AST.Dump(f, 2)
+	return ""
+}
+
 type Scanner struct {
 	RootPath string
 }
@@ -29,13 +44,13 @@ func NewScanner(rootPath string) *Scanner {
 }
 
 func (s *Scanner) Scan() ([]Note, error) {
-	markdown := goldmark.New(
+	md := goldmark.New(
 		goldmark.WithExtensions(
 			meta.New(
 				meta.WithStoresInDocument(),
 			),
 		),
-	)
+	).Parser()
 
 	notes := []Note{}
 	err := filepath.WalkDir(s.RootPath, func(path string, d fs.DirEntry, err error) error {
@@ -54,7 +69,7 @@ func (s *Scanner) Scan() ([]Note, error) {
 			}
 
 			reader := text.NewReader(f)
-			document := markdown.Parser().Parse(reader)
+			document := md.Parse(reader)
 			metaData := document.OwnerDocument().Meta()
 
 			if marked, ok := metaData["noto"]; ok {
@@ -73,6 +88,7 @@ func (s *Scanner) Scan() ([]Note, error) {
 					Title:     title,
 					Path:      path,
 					Directive: directive,
+					AST:       document,
 				})
 			}
 		}
