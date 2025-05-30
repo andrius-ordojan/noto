@@ -23,3 +23,5 @@ Some more random text with an inline [markdown-style link](https://inline.link/e
 ## Subheading
 
 Final paragraph to test parsing edge cases. Includes trailing link: https://antithesis.com/blog/2025/fix_the_new_things_first/
+
+[markdown-style link](https://inline.link/example)
