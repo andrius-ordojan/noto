@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"log"
@@ -20,17 +21,58 @@ type Note struct {
 	Path      string
 	Directive string
 	AST       ast.Node
+	Content   []byte
 }
 
-func (n *Note) parse() string {
-	// find links in text and link nodes
-
-	f, err := os.ReadFile(n.Path)
-	if err != nil {
-		log.Fatalf("could not read file: %v", err)
+func (n *Note) parse() ([]string, error) {
+	if n.AST == nil {
+		panic("AST is nil, please parse the document first")
 	}
-	n.AST.Dump(f, 2)
-	return ""
+
+	var paragraphs []string
+	var err error
+
+	// find links in text and link nodes
+	err = ast.Walk(n.AST, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		if para, ok := node.(*ast.Paragraph); ok {
+			var buf bytes.Buffer
+
+			for c := para.FirstChild(); c != nil; c = c.NextSibling() {
+				if t, ok := c.(*ast.Text); ok {
+					buf.Write(t.Segment.Value(n.Content))
+				}
+				// You might want to handle other inline elements like Emphasis, Strong, Link, etc.
+				// to reconstruct the full paragraph text accurately.
+				// For simplicity, this example just extracts raw text segments.
+			}
+			paragraphs = append(paragraphs, buf.String())
+		}
+		return ast.WalkContinue, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error walking the AST: %w", err)
+	}
+
+	return paragraphs, nil
+	// ast.Walk(n.AST, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+	// 	if entering {
+	// 		switch n := node.(type) {
+	// 		case *ast.Link:
+	// 			fmt.Printf("Found link: %s\n", n.Destination)
+	// 		case *ast.Text:
+	// 			fmt.Printf("Found text: %s\n", n.Text(source))
+	// 		}
+	// 	}
+	// 	return ast.WalkContinue, nil
+	// })
+	// f, err := os.ReadFile(n.Path) if err != nil {
+	// 	log.Fatalf("could not read file: %v", err)
+	// }
+	// n.AST.Dump(f, 2)
 }
 
 type Scanner struct {
@@ -89,6 +131,7 @@ func (s *Scanner) Scan() ([]Note, error) {
 					Path:      path,
 					Directive: directive,
 					AST:       document,
+					Content:   f,
 				})
 			}
 		}
