@@ -85,7 +85,6 @@ func (s *Scanner) Scan() ([]Note, error) {
 		goldmark.WithExtensions(
 			meta.New(
 				meta.WithStoresInDocument(),
-				// meta.WithMetaPrefix("noto"),
 			),
 			extension.GFM,
 		),
