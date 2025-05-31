@@ -3,7 +3,7 @@ someotherprop: with text for some reason
 noto: directive for note processinng
 ---
 
-Some more random text with an inline [markdown-style link](https://inline.link/example) more text after.
+Some more random text with an inline [markdown-style link](https://inline.link/examplew) more text after.
 
 somelink  
 https://tigerbeetle.com/blog/
