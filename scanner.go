@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"log"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/text"
@@ -24,55 +24,50 @@ type Note struct {
 	Content   []byte
 }
 
-func (n *Note) parse() ([]string, error) {
+func (n *Note) getAllURLs() ([]string, error) {
 	if n.AST == nil {
 		panic("AST is nil, please parse the document first")
 	}
+	if n.Content == nil {
+		panic("Content is nil, it's needed to extract text from nodes")
+	}
 
-	var paragraphs []string
-	var err error
-
-	// find links in text and link nodes
-	err = ast.Walk(n.AST, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+	urls := make(map[string]struct{})
+	err := ast.Walk(n.AST, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 
-		if para, ok := node.(*ast.Paragraph); ok {
-			var buf bytes.Buffer
+		var currentURLString string
 
-			for c := para.FirstChild(); c != nil; c = c.NextSibling() {
-				if t, ok := c.(*ast.Text); ok {
-					buf.Write(t.Segment.Value(n.Content))
-				}
-				// You might want to handle other inline elements like Emphasis, Strong, Link, etc.
-				// to reconstruct the full paragraph text accurately.
-				// For simplicity, this example just extracts raw text segments.
+		switch ConcreteNode := node.(type) {
+		case *ast.Link:
+			currentURLString = string(ConcreteNode.Destination)
+		case *ast.Image:
+			currentURLString = string(ConcreteNode.Destination)
+		case *ast.AutoLink:
+			if ConcreteNode.AutoLinkType != ast.AutoLinkURL {
+				return ast.WalkContinue, nil
 			}
-			paragraphs = append(paragraphs, buf.String())
+			currentURLString = string(ConcreteNode.URL(n.Content))
 		}
+
+		if currentURLString != "" {
+			urls[currentURLString] = struct{}{}
+		}
+
 		return ast.WalkContinue, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error walking the AST: %w", err)
 	}
 
-	return paragraphs, nil
-	// ast.Walk(n.AST, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-	// 	if entering {
-	// 		switch n := node.(type) {
-	// 		case *ast.Link:
-	// 			fmt.Printf("Found link: %s\n", n.Destination)
-	// 		case *ast.Text:
-	// 			fmt.Printf("Found text: %s\n", n.Text(source))
-	// 		}
-	// 	}
-	// 	return ast.WalkContinue, nil
-	// })
-	// f, err := os.ReadFile(n.Path) if err != nil {
-	// 	log.Fatalf("could not read file: %v", err)
-	// }
-	// n.AST.Dump(f, 2)
+	resultURLs := make([]string, 0, len(urls))
+	for u := range urls {
+		resultURLs = append(resultURLs, u)
+	}
+
+	return resultURLs, nil
 }
 
 type Scanner struct {
@@ -90,7 +85,9 @@ func (s *Scanner) Scan() ([]Note, error) {
 		goldmark.WithExtensions(
 			meta.New(
 				meta.WithStoresInDocument(),
+				// meta.WithMetaPrefix("noto"),
 			),
+			extension.GFM,
 		),
 	).Parser()
 
@@ -114,6 +111,7 @@ func (s *Scanner) Scan() ([]Note, error) {
 			document := md.Parse(reader)
 			metaData := document.OwnerDocument().Meta()
 
+			document.Dump(f, 0)
 			if marked, ok := metaData["noto"]; ok {
 				base := filepath.Base(path)
 				ext := filepath.Ext(base)

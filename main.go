@@ -14,7 +14,11 @@ func run() error {
 
 	for _, note := range notes {
 		// fmt.Printf("Title: %s, Path: %s, Directive: %s\n", note.Title, note.Path, note.Directive)
-		note.parse()
+		urls, err := note.getAllURLs()
+		if err != nil {
+			return fmt.Errorf("could not get URLs for note %s: %w", note.Title, err)
+		}
+		fmt.Printf("Note: %s, URLs: %v\n", note.Title, urls)
 	}
 
 	return nil
