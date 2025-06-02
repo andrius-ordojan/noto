@@ -21,7 +21,7 @@ func run() error {
 		fmt.Printf("Note: %s, URLs: %v\n", note.Title, urls)
 	}
 
-	// TODO: archive to archive box and wait for content to apeare
+	// TODO: archive to archive box and wait for content to apopear and use the result link to replace the URL in the note
 
 	return nil
 
