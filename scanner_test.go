@@ -49,7 +49,7 @@ func TestNote_getAllURLs(t *testing.T) {
 		RelVaultPath: "example.md",
 		Directive:    "test",
 		Content: []byte(`---
-noto: test
+noto: 
 ---
 
 [Link](https://a.com)

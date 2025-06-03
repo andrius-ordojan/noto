@@ -95,11 +95,9 @@ func parseNote(path string, content []byte, parser goldmark.Markdown) (*Note, er
 	ext := filepath.Ext(base)
 	title := strings.TrimSuffix(base, ext)
 
-	var directive string
+	directive := ""
 	if marked != nil {
 		directive = strings.TrimSpace(marked.(string))
-	} else {
-		directive = "default-directive"
 	}
 
 	return &Note{
