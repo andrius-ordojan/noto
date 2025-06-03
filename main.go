@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"net/http"
-	nurl "net/url"
-	"time"
+	"net/url"
 
-	html2markdown "github.com/JohannesKaufmann/html-to-markdown"
-	"github.com/markusmobius/go-trafilatura"
+	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
+	"github.com/go-shiori/go-readability"
 )
 
 func run() error {
@@ -38,42 +36,32 @@ func run() error {
 	// fmt.Println(findMDFiles("/home/andrius/Documents/obsidian-cabinet/resources/"))
 }
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
-
-func runt() error {
-	url := "https://scalegrid.io/blog/mongodb-rollback/"
-	url = "https://news.ycombinator.com/item?id=44157177"
-	url = "https://betterstack.com/community/guides/logging/how-to-start-logging-with-python/#logging-errors-in-python"
-	parsedURL, err := nurl.ParseRequestURI(url)
+func runr() error {
+	// u := "https://betterstack.com/community/guides/logging/how-to-start-logging-with-python/#logging-errors-in-python"
+	u := "https://last9.io/blog/python-logging-exceptions/"
+	resp, err := http.Get(u)
 	if err != nil {
-		log.Fatalf("failed  to parse url: %v", err)
-	}
-
-	// Fetch article
-	resp, err := httpClient.Get(url)
-	if err != nil {
-		log.Fatalf("failed to fetch the page: %v", err)
+		log.Fatalf("failed to download %s: %v\n", u, err)
 	}
 	defer resp.Body.Close()
 
-	// Extract content
-	opts := trafilatura.Options{
-		IncludeImages: false,
-		OriginalURL:   parsedURL,
-	}
-
-	result, err := trafilatura.Extract(resp.Body, opts)
+	parsedURL, err := url.Parse(u)
 	if err != nil {
-		log.Fatalf("failed to extract: %v", err)
+		log.Fatalf("error parsing url")
 	}
 
-	doc := trafilatura.CreateReadableDocument(result)
-	fmt.Println(result.Content)
+	article, err := readability.FromReader(resp.Body, parsedURL)
+	if err != nil {
+		log.Fatalf("failed to parse %s: %v\n", u, err)
+	}
 
-	htmlContent := []byte(result.Content)
-	mdBuf := new(bytes.Buffer)
-	converter := html2markdown.NewConverter("", true, nil)
-	markdown, err := converter.ConvertString(htmlContent)
+	// fmt.Printf("URL     : %s\n", u)
+	// fmt.Printf("Title   : %s\n", article.Title)
+	// fmt.Printf("Excerpt : %s\n", article.Excerpt)
+	// fmt.Printf("SiteName: %s\n", article.Content)
+	// fmt.Println("Content :")
+
+	markdown, err := htmltomarkdown.ConvertString(article.Content)
 	if err != nil {
 		log.Fatalf("failed to convert html to markdown: %v", err)
 	}
@@ -82,7 +70,8 @@ func runt() error {
 }
 
 func main() {
-	err := runt()
+	err := runr()
+	// err := runt()
 	// err := run()
 	if err != nil {
 		log.Fatal(err)
