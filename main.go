@@ -1,8 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"net/http"
+	nurl "net/url"
+	"time"
+
+	html2markdown "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/markusmobius/go-trafilatura"
 )
 
 func run() error {
@@ -31,8 +38,52 @@ func run() error {
 	// fmt.Println(findMDFiles("/home/andrius/Documents/obsidian-cabinet/resources/"))
 }
 
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
+func runt() error {
+	url := "https://scalegrid.io/blog/mongodb-rollback/"
+	url = "https://news.ycombinator.com/item?id=44157177"
+	url = "https://betterstack.com/community/guides/logging/how-to-start-logging-with-python/#logging-errors-in-python"
+	parsedURL, err := nurl.ParseRequestURI(url)
+	if err != nil {
+		log.Fatalf("failed  to parse url: %v", err)
+	}
+
+	// Fetch article
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		log.Fatalf("failed to fetch the page: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Extract content
+	opts := trafilatura.Options{
+		IncludeImages: false,
+		OriginalURL:   parsedURL,
+	}
+
+	result, err := trafilatura.Extract(resp.Body, opts)
+	if err != nil {
+		log.Fatalf("failed to extract: %v", err)
+	}
+
+	doc := trafilatura.CreateReadableDocument(result)
+	fmt.Println(result.Content)
+
+	htmlContent := []byte(result.Content)
+	mdBuf := new(bytes.Buffer)
+	converter := html2markdown.NewConverter("", true, nil)
+	markdown, err := converter.ConvertString(htmlContent)
+	if err != nil {
+		log.Fatalf("failed to convert html to markdown: %v", err)
+	}
+	fmt.Println(markdown)
+	return nil
+}
+
 func main() {
-	err := run()
+	err := runt()
+	// err := run()
 	if err != nil {
 		log.Fatal(err)
 	}

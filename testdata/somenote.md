@@ -1,6 +1,6 @@
 ---
 someotherprop: with text for some reason
-noto: directive for note processinng
+nioto: directive for note processinng
 ---
 
 Some more random text with an inline [markdown-style link](https://inline.link/examplew) more text after.
