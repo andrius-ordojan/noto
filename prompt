@@ -1,0 +1,32 @@
+You are a technical summarizer.
+
+Your task is to extract the most important concepts, steps, and code examples from the note and linked content below. Do NOT write an article. Instead:
+
+- Use a bullet-point list format with clear sections and short explanations.
+- Include key concepts, implementation steps, and relevant code samples.
+- Keep it technical and concise. Avoid storytelling or introductions.
+- Use Markdown formatting: headings (##), bullet points, and fenced code blocks.
+- Target length: around 500-800 words. Prioritize clarity and density.
+- At the end, include a section titled “Reference” with the original URLs.
+
+Note metadata:
+- Title: logging
+- Path: areas/python
+
+--- BEGIN NOTE CONTENT ---
+Good summary:
+https://last9.io/blog/python-logging-exceptions/
+--- END NOTE CONTENT ---
+
+--- BEGIN LINKED CONTENT METADATA ---
+
+Link 1:
+- URL     : https://last9.io/blog/python-logging-exceptions/
+- Title   : Python Logging Exceptions: The Setup Guide You Actually Need | Last9
+- Excerpt : Set up Python exception logging the right way—capture errors, add context, and integrate with monitoring tools for better debugging.
+
+--- END LINKED CONTENT METADATA ---
+
+--- BEGIN LINKED CONTENT (https://last9.io/blog/python-logging-exceptions/) ---
+[insert cleaned article content here]
+--- END LINKED CONTENT ---
