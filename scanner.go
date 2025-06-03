@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,11 +16,11 @@ import (
 )
 
 type Note struct {
-	Title     string
-	Path      string
-	Directive string
-	AST       ast.Node
-	Content   []byte
+	Title        string
+	RelVaultPath string
+	Directive    string
+	AST          ast.Node
+	Content      []byte
 }
 
 func (n *Note) getAllURLs() ([]string, error) {
@@ -42,8 +41,6 @@ func (n *Note) getAllURLs() ([]string, error) {
 
 		switch ConcreteNode := node.(type) {
 		case *ast.Link:
-			currentURLString = string(ConcreteNode.Destination)
-		case *ast.Image:
 			currentURLString = string(ConcreteNode.Destination)
 		case *ast.AutoLink:
 			if ConcreteNode.AutoLinkType != ast.AutoLinkURL {
@@ -71,72 +68,80 @@ func (n *Note) getAllURLs() ([]string, error) {
 }
 
 type Scanner struct {
-	RootPath string
+	VaultRootPath string
 }
 
-func NewScanner(rootPath string) *Scanner {
+func NewScanner(vaultRootPath string) *Scanner {
 	return &Scanner{
-		RootPath: rootPath,
+		VaultRootPath: vaultRootPath,
 	}
 }
 
 func (s *Scanner) Scan() ([]Note, error) {
+	return ScanFS(os.DirFS(s.VaultRootPath), ".")
+}
+
+func parseNote(path string, content []byte, parser goldmark.Markdown) (*Note, error) {
+	reader := text.NewReader(content)
+	document := parser.Parser().Parse(reader)
+	metaData := document.OwnerDocument().Meta()
+
+	marked, ok := metaData["noto"]
+	if !ok {
+		return nil, nil // not a valid note
+	}
+
+	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	title := strings.TrimSuffix(base, ext)
+
+	var directive string
+	if marked != nil {
+		directive = strings.TrimSpace(marked.(string))
+	} else {
+		directive = "default-directive"
+	}
+
+	return &Note{
+		Title:        title,
+		RelVaultPath: path,
+		Directive:    directive,
+		AST:          document,
+		Content:      content,
+	}, nil
+}
+
+func ScanFS(vault fs.FS, root string) ([]Note, error) {
 	md := goldmark.New(
 		goldmark.WithExtensions(
-			meta.New(
-				meta.WithStoresInDocument(),
-			),
+			meta.New(meta.WithStoresInDocument()),
 			extension.GFM,
 		),
-	).Parser()
+	)
 
-	notes := []Note{}
-	err := filepath.WalkDir(s.RootPath, func(path string, d fs.DirEntry, err error) error {
+	var notes []Note
+	err := fs.WalkDir(vault, root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return fmt.Errorf("could not access path %q: %w", path, err)
+			return fmt.Errorf("could not access %s: %w", path, err)
+		}
+		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
+			return nil
 		}
 
-		if d.IsDir() {
-			return nil // Skip directories
+		fileData, err := fs.ReadFile(vault, path)
+		if err != nil {
+			return fmt.Errorf("could not read %s: %w", path, err)
 		}
 
-		if strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
-			f, err := os.ReadFile(path)
-			if err != nil {
-				log.Fatalf("could not read file: %v", err)
-			}
-
-			reader := text.NewReader(f)
-			document := md.Parse(reader)
-			metaData := document.OwnerDocument().Meta()
-
-			document.Dump(f, 0)
-			if marked, ok := metaData["noto"]; ok {
-				base := filepath.Base(path)
-				ext := filepath.Ext(base)
-				title := strings.TrimSuffix(base, ext)
-
-				var directive string
-				if marked != nil {
-					directive = strings.TrimSpace(marked.(string))
-				} else {
-					directive = "default-directive" // TODO: fill in with default directive if nil
-				}
-
-				notes = append(notes, Note{
-					Title:     title,
-					Path:      path,
-					Directive: directive,
-					AST:       document,
-					Content:   f,
-				})
-			}
+		note, err := parseNote(path, fileData, md)
+		if err != nil {
+			return err
+		}
+		if note != nil {
+			notes = append(notes, *note)
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("could not walk the path %q: %w", s.RootPath, err)
-	}
 
-	return notes, nil
+	return notes, err
 }
