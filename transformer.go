@@ -1,7 +1,90 @@
 package main
 
-func process() {
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"google.golang.org/genai"
+)
+
+type Transformer struct {
+	VaultRootPath string
+	client        *genai.Client
+	ctx           context.Context
+}
+
+func NewTransformer(vaultRootPath, APIKey string) *Transformer {
+	if vaultRootPath == "" {
+		panic("VaultRootPath cannot be empty")
+	}
+	if APIKey == "" {
+		panic("API Key cannot be empty")
+	}
+
+	ctx := context.Background()
+
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  APIKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &Transformer{
+		VaultRootPath: vaultRootPath,
+		client:        client,
+		ctx:           ctx,
+	}
+}
+
+func (t *Transformer) Process(note Note) error {
+	if note.Content == nil {
+		panic("Content cannot be nil, please parse the document first")
+	}
+
+	config := &genai.GenerateContentConfig{
+		SystemInstruction: genai.NewContentFromText(`
+You are a technical summarizer.
+
+Your task is to extract the most important concepts, steps, and code examples from the note and linked content below. Do NOT write an article. Instead:
+
+- Use a bullet-point list format with clear sections and short explanations.
+- Include key concepts, implementation steps, and relevant code samples.
+- Keep it technical and concise. Avoid storytelling or introductions.
+- Use Markdown formatting: headings (##), bullet points, and fenced code blocks.
+- Target length: up to 1500 words. Prioritize clarity and density, but keep it as short as possible.
+
+Guidance:
+- Prioritize topics, technologies, or keywords explicitly mentioned in the note content.
+- Expand in more detail on these prioritized topics, while still covering other relevant material.
+- If multiple links are provided, merge overlapping content and avoid repeating basic explanations.
+`, genai.RoleUser),
+		Tools: []*genai.Tool{
+			{
+				URLContext: &genai.URLContext{},
+			},
+		},
+	}
+
+	// get note metadata and content
+	result, err := t.client.Models.GenerateContent(
+		t.ctx,
+		"gemini-2.5-flash-preview-05-20",
+		genai.Text("Explain how AI works in a few words"),
+		config,
+	)
+	if err != nil {
+		return fmt.Errorf("could not generate content: %w", err)
+	}
+
+	fmt.Println(result.Text())
 	// call llm to process the note
 	// writes llm content and appends original note at the end
 	// add noto: done to the properties
+
+	return nil
 }
+
+// TODO: do I need to quit client before app exits
