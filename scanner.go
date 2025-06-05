@@ -72,6 +72,10 @@ type Scanner struct {
 }
 
 func NewScanner(vaultRootPath string) *Scanner {
+	if vaultRootPath == "" {
+		panic("VaultRootPath cannot be empty")
+	}
+
 	return &Scanner{
 		VaultRootPath: vaultRootPath,
 	}
