@@ -7,10 +7,15 @@ import (
 	"net/url"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
+	"github.com/alexflint/go-arg"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/go-shiori/go-readability"
 )
 
-func run() error {
+func runold() error {
 	scanner := NewScanner("./testdata/")
 	notes, err := scanner.Scan()
 	if err != nil {
@@ -28,15 +33,6 @@ func run() error {
 
 	// TODO: archive to archive box and wait for content to apopear and use the result link to replace the URL in the note
 
-	return nil
-
-	// document.Dump(f, 2)
-
-	// fmt.Println("Listing files in the directory:")
-	// fmt.Println(findMDFiles("/home/andrius/Documents/obsidian-cabinet/resources/"))
-}
-
-func runr() error {
 	// u := "https://betterstack.com/community/guides/logging/how-to-start-logging-with-python/#logging-errors-in-python"
 	u := "https://last9.io/blog/python-logging-exceptions/"
 	resp, err := http.Get(u)
@@ -67,12 +63,151 @@ func runr() error {
 	}
 	fmt.Println(markdown)
 	return nil
+
+	// document.Dump(f, 2)
+
+	// fmt.Println("Listing files in the directory:")
+	// fmt.Println(findMDFiles("/home/andrius/Documents/obsidian-cabinet/resources/"))
+}
+
+type args struct {
+	VaultRoot string `arg:"positional,required" help:"root directory of the obsidian vault"`
+}
+
+func (args) Description() string {
+	return "Feeds note to an LLM and create a note taking into account note content and linked websites."
+}
+
+func (args) Version() string {
+	return "version 1"
+}
+
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
+
+type item struct {
+	title, description string
+	Note               Note
+}
+
+func (i item) Title() string       { return i.title }
+func (i item) Description() string { return i.description }
+func (i item) FilterValue() string { return i.title }
+
+type listKeyMap struct {
+	selectItem key.Binding
+}
+
+func newListKeyMap() *listKeyMap {
+	return &listKeyMap{
+		selectItem: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "select item"),
+		),
+	}
+}
+
+type model struct {
+	list         list.Model
+	keys         *listKeyMap
+	selectedItem *item
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		if key.Matches(msg, m.keys.selectItem) {
+			selected := m.list.SelectedItem()
+			if selected != nil {
+				if itm, ok := selected.(item); ok {
+					m.selectedItem = &itm
+					return m, tea.Quit
+				}
+			}
+		}
+	case tea.WindowSizeMsg:
+		h, v := docStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
+	}
+
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+func (m model) View() string {
+	return docStyle.Render(m.list.View())
+}
+
+func run() error {
+	var cfg args
+	arg.MustParse(&cfg)
+
+	scanner := NewScanner(cfg.VaultRoot)
+	notes, err := scanner.Scan()
+	if err != nil {
+		return fmt.Errorf("could not scan notes: %w", err)
+	}
+
+	var names []string
+	for _, note := range notes {
+		names = append(names, note.Title)
+	}
+
+	items := []list.Item{}
+	for _, note := range notes {
+		items = append(items, item{
+			title:       note.Title,
+			description: note.RelVaultPath,
+			Note:        note,
+		})
+	}
+
+	keys := newListKeyMap()
+
+	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	l.Title = "noto marked notes"
+
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.selectItem}
+	}
+
+	l.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.selectItem}
+	}
+
+	m := model{
+		list: l,
+		keys: keys,
+	}
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
+
+	resultModel, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("error running program: %w", err)
+	}
+
+	selectedModel, ok := resultModel.(model)
+	if ok {
+		if selectedModel.selectedItem == nil {
+			return fmt.Errorf("no item selected")
+		}
+
+		fmt.Println("You selected:", selectedModel.selectedItem.title)
+	}
+
+	return nil
 }
 
 func main() {
-	err := runr()
-	// err := runt()
-	// err := run()
+	err := run()
 	if err != nil {
 		log.Fatal(err)
 	}
