@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/alexflint/go-arg"
@@ -145,11 +146,27 @@ func (m model) View() string {
 	return docStyle.Render(m.list.View())
 }
 
+func newNoteList(items []list.Item, keys *listKeyMap) list.Model {
+	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
+	l.Title = "noto marked notes"
+
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.selectItem}
+	}
+	l.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{keys.selectItem}
+	}
+
+	return l
+}
+
 func run() error {
 	var cfg args
 	arg.MustParse(&cfg)
-
+	os.Getenv("GOOGLE_API_KEY")
 	scanner := NewScanner(cfg.VaultRoot)
+	trans
+
 	notes, err := scanner.Scan()
 	if err != nil {
 		return fmt.Errorf("could not scan notes: %w", err)
@@ -170,23 +187,11 @@ func run() error {
 	}
 
 	keys := newListKeyMap()
-
-	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "noto marked notes"
-
-	l.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.selectItem}
-	}
-
-	l.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{keys.selectItem}
-	}
-
+	list := newNoteList(items, keys)
 	m := model{
-		list: l,
+		list: list,
 		keys: keys,
 	}
-
 	p := tea.NewProgram(m, tea.WithAltScreen())
 
 	resultModel, err := p.Run()
