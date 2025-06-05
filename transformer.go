@@ -40,8 +40,14 @@ func NewTransformer(vaultRootPath, APIKey string) *Transformer {
 }
 
 func (t *Transformer) Process(note Note) error {
-	if note.Content == nil {
-		panic("Content cannot be nil, please parse the document first")
+	if note.Title == "" {
+		panic("Title is empty")
+	}
+	if note.RelVaultPath == "" {
+		panic("RelVaultPath is empty")
+	}
+	if len(note.Content) == 0 {
+		panic("note content must not be empty")
 	}
 
 	config := &genai.GenerateContentConfig{
@@ -68,11 +74,20 @@ Guidance:
 		},
 	}
 
-	// get note metadata and content
+	prompt := genai.Text(fmt.Sprintf(`
+Note metadata:
+- Title: %s
+- Path: %s
+
+--- BEGIN NOTE CONTENT ---
+%s
+--- END NOTE CONTENT ---
+`, note.Title, note.RelVaultPath, note.Content))
+
 	result, err := t.client.Models.GenerateContent(
 		t.ctx,
 		"gemini-2.5-flash-preview-05-20",
-		genai.Text("Explain how AI works in a few words"),
+		prompt,
 		config,
 	)
 	if err != nil {
@@ -86,5 +101,3 @@ Guidance:
 
 	return nil
 }
-
-// TODO: do I need to quit client before app exits
