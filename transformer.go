@@ -62,7 +62,7 @@ Your task is to extract the most important concepts, steps, and code examples fr
 - Include key concepts, implementation steps, and relevant code samples.
 - Keep it technical and concise. Avoid storytelling or introductions.
 - Use Markdown formatting: headings (##), bullet points, and fenced code blocks.
-- Target length: up to 1500 words. Prioritize clarity and density, but keep it as short as possible.
+- Target length: up to 1000 words. Prioritize clarity and density, but keep it as short as possible.
 
 Guidance:
 - Prioritize topics, technologies, or keywords explicitly mentioned in the note content.
