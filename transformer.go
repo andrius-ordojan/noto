@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"google.golang.org/genai"
 )
@@ -94,10 +96,13 @@ Note metadata:
 		return fmt.Errorf("could not generate content: %w", err)
 	}
 
-	fmt.Println(result.Text())
-	// call llm to process the note
-	// writes llm content and appends original note at the end
-	// add noto: done to the properties
+	note.AST.OwnerDocument().Meta()["noto"] = "done"
+	newNote := fmt.Sprintf("%s\n%s\n\n+++++ original note bellow +++++\n%s", note.Fontmatter(), result.Text(), note.Content)
+
+	notePath := filepath.Join(t.VaultRootPath, note.RelVaultPath)
+	if err := os.WriteFile(notePath, []byte(newNote), 0644); err != nil {
+		return fmt.Errorf("could not write note file %s: %w", notePath, err)
+	}
 
 	return nil
 }
