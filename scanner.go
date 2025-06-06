@@ -18,9 +18,25 @@ import (
 type Note struct {
 	Title        string
 	RelVaultPath string
-	Directive    string
 	AST          ast.Node
 	Content      []byte
+}
+
+func (n *Note) Fontmatter() string {
+	var fontmatter string
+
+	for k, v := range n.AST.OwnerDocument().Meta() {
+		if v == nil {
+			v = ""
+		}
+		fontmatter += fmt.Sprintf("%s: %v\n", k, v)
+	}
+
+	if fontmatter == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("---\n%s---", fontmatter)
 }
 
 func (n *Note) getAllURLs() ([]string, error) {
@@ -95,19 +111,17 @@ func parseNote(path string, content []byte, parser goldmark.Markdown) (*Note, er
 		return nil, nil // not a valid note
 	}
 
+	if marked != nil && marked.(string) == "done" {
+		return nil, nil // skip notes that are marked as done
+	}
+
 	base := filepath.Base(path)
 	ext := filepath.Ext(base)
 	title := strings.TrimSuffix(base, ext)
 
-	directive := ""
-	if marked != nil {
-		directive = strings.TrimSpace(marked.(string))
-	}
-
 	return &Note{
 		Title:        title,
 		RelVaultPath: path,
-		Directive:    directive,
 		AST:          document,
 		Content:      content,
 	}, nil
