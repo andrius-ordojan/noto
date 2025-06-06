@@ -3,76 +3,17 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
-	"net/url"
-	"os"
 
-	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/alexflint/go-arg"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-shiori/go-readability"
 )
 
-func runold() error {
-	scanner := NewScanner("./testdata/")
-	notes, err := scanner.Scan()
-	if err != nil {
-		return fmt.Errorf("could not scan notes: %w", err)
-	}
-
-	for _, note := range notes {
-		// fmt.Printf("Title: %s, Path: %s, Directive: %s\n", note.Title, note.Path, note.Directive)
-		urls, err := note.getAllURLs()
-		if err != nil {
-			return fmt.Errorf("could not get URLs for note %s: %w", note.Title, err)
-		}
-		fmt.Printf("Note: %s, URLs: %v\n", note.Title, urls)
-	}
-
-	// TODO: archive to archive box and wait for content to apopear and use the result link to replace the URL in the note
-
-	// u := "https://betterstack.com/community/guides/logging/how-to-start-logging-with-python/#logging-errors-in-python"
-	u := "https://last9.io/blog/python-logging-exceptions/"
-	resp, err := http.Get(u)
-	if err != nil {
-		log.Fatalf("failed to download %s: %v\n", u, err)
-	}
-	defer resp.Body.Close()
-
-	parsedURL, err := url.Parse(u)
-	if err != nil {
-		log.Fatalf("error parsing url")
-	}
-
-	article, err := readability.FromReader(resp.Body, parsedURL)
-	if err != nil {
-		log.Fatalf("failed to parse %s: %v\n", u, err)
-	}
-
-	// fmt.Printf("URL     : %s\n", u)
-	// fmt.Printf("Title   : %s\n", article.Title)
-	// fmt.Printf("Excerpt : %s\n", article.Excerpt)
-	// fmt.Printf("SiteName: %s\n", article.Content)
-	// fmt.Println("Content :")
-
-	markdown, err := htmltomarkdown.ConvertString(article.Content)
-	if err != nil {
-		log.Fatalf("failed to convert html to markdown: %v", err)
-	}
-	fmt.Println(markdown)
-	return nil
-
-	// document.Dump(f, 2)
-
-	// fmt.Println("Listing files in the directory:")
-	// fmt.Println(findMDFiles("/home/andrius/Documents/obsidian-cabinet/resources/"))
-}
-
 type args struct {
-	VaultRoot string `arg:"positional,required" help:"root directory of the obsidian vault"`
+	GeminiAPIKey string `arg:"-k,--api-key,required" help:"Google Gemini API key"`
+	VaultRoot    string `arg:"positional,required" help:"root directory of the obsidian vault"`
 }
 
 func (args) Description() string {
@@ -163,9 +104,9 @@ func newNoteList(items []list.Item, keys *listKeyMap) list.Model {
 func run() error {
 	var cfg args
 	arg.MustParse(&cfg)
-	os.Getenv("GOOGLE_API_KEY")
+
 	scanner := NewScanner(cfg.VaultRoot)
-	trans
+	transformer := NewTransformer(cfg.VaultRoot, cfg.GeminiAPIKey)
 
 	notes, err := scanner.Scan()
 	if err != nil {
@@ -205,7 +146,12 @@ func run() error {
 			return fmt.Errorf("no item selected")
 		}
 
-		fmt.Println("You selected:", selectedModel.selectedItem.title)
+		fmt.Println("processing:", selectedModel.selectedItem.title)
+		// TODO: add spinner
+
+		if err := transformer.Process(selectedModel.selectedItem.Note); err != nil {
+			return fmt.Errorf("could not process note: %w", err)
+		}
 	}
 
 	return nil
